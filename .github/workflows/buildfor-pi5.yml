@@ -55,24 +55,30 @@ jobs:
           agree_to_license: 1
           signing_key: ${{ secrets.CONVEYOR_SIGNING_KEY || 'generate' }}
 
-      - name: Download and Setup x86_64 AppImageTool
-        run: |
-          # We MUST download the x86_64 version because the GitHub runner is x86_64
-          wget https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O /tmp/appimagetool
-          chmod +x /tmp/appimagetool
-          cd /tmp
-          # Extract it to avoid FUSE issues in CI
-          ./appimagetool --appimage-extract
-          sudo mv squashfs-root /opt/appimagetool.AppDir
-          sudo ln -s /opt/appimagetool.AppDir/AppRun /usr/local/bin/appimagetool
+      - name: Build AppDir and Initial AppImage via Gradle
+        # This does the heavy lifting: creates the .desktop file, icons, and AppDir.
+        # It creates an x86_64 wrapper, but the binaries inside are still aarch64.
+        run: ./gradlew :desktopApp:packageConveyorAppImage --no-configuration-cache
 
-      - name: Manually Wrap Conveyor output → ARM64 AppImage
+      - name: Repackage AppImage for ARM64
         env:
           ARCH: aarch64
         run: |
-          # Pass the entire output/ directory directly to appimagetool
-          appimagetool output/ output/SimpMusic-RaspberryPi5-aarch64.AppImage
-
+          # 1. Download x86_64 AppImageTool to act as our repackager
+          wget https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+          ./appimagetool --appimage-extract
+          mv squashfs-root appimagetool-dir
+          
+          # 2. Find and extract the AppImage Gradle just built to get the perfect AppDir folder
+          WRONG_APPIMAGE=$(find desktopApp/build/appimage/conveyor/ -name "SimpMusic-*.AppImage" | head -1)
+          chmod +x "$WRONG_APPIMAGE"
+          "$WRONG_APPIMAGE" --appimage-extract
+          
+          # 3. Repackage the extracted AppDir (squashfs-root) into a true ARM64 AppImage
+          mkdir -p output/
+          ./appimagetool-dir/AppRun squashfs-root output/SimpMusic-RaspberryPi5-aarch64.AppImage
+          
       - name: Upload Pi AppImage
         uses: actions/upload-artifact@v4
         with:
