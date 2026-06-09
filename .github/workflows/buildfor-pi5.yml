@@ -26,8 +26,6 @@ jobs:
           cache: 'gradle'
 
       - name: Install 7-Zip 24.x + libfuse2
-        # Retained to ensure the Gradle `vlcSetupAll` task doesn't fail if it 
-        # attempts to extract macOS DMG assets during the cross-platform setup step.
         run: |
           sudo apt-get update
           sudo apt-get install -y libfuse2
@@ -50,19 +48,27 @@ jobs:
       - name: Generate Conveyor config
         run: ./gradlew :desktopApp:writeConveyorConfig --no-configuration-cache
 
-      - name: Run Conveyor (Linux ARM64 only)
+      - name: Run Conveyor (Linux ARM64)
         uses: hydraulic-software/conveyor/actions/build@v22.0
         with:
           command: -Kapp.machines=linux.aarch64.glibc make linux-app
           agree_to_license: 1
-          # Pass a randomly generated dummy key for an unsigned personal build
           signing_key: ${{ secrets.CONVEYOR_SIGNING_KEY || 'generate' }}
 
-      - name: Wrap Linux app tree → AppImage
+      - name: Wrap Linux app tree → AppImage (Force ARM64)
+        # We inject ARCH=aarch64 to force the AppImage bundler to correctly label and package for ARM64
+        env:
+          ARCH: aarch64
         run: ./gradlew :desktopApp:packageConveyorAppImage --no-configuration-cache
+
+      - name: Stage AppImage into output/ for upload
+        run: |
+          mkdir -p output/
+          # Catch the file regardless of how appimagetool decides to name it, and rename it explicitly
+          cp desktopApp/build/appimage/conveyor/SimpMusic-*.AppImage output/SimpMusic-RaspberryPi5-aarch64.AppImage
 
       - name: Upload Pi AppImage
         uses: actions/upload-artifact@v4
         with:
           name: simpmusic-pi5-arm64
-          path: desktopApp/build/appimage/conveyor/SimpMusic-*.AppImage
+          path: output/SimpMusic-RaspberryPi5-aarch64.AppImage
