@@ -37,6 +37,7 @@ jobs:
 
       - name: Update build product flavor & Sentry
         run: |
+          echo "" >> ./gradle.properties
           echo "isFullBuild=true" >> ./gradle.properties
           echo 'SENTRY_DSN=${{ secrets.SENTRY_DSN_JVM }}' > ./local.properties
           echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" >> ./local.properties
