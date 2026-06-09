@@ -53,10 +53,10 @@ jobs:
       - name: Run Conveyor (Linux ARM64 only)
         uses: hydraulic-software/conveyor/actions/build@v22.0
         with:
-          # Targets ONLY the Raspberry Pi 5 architecture
           command: -Kapp.machines=linux.aarch64.glibc make linux-app
           agree_to_license: 1
-          signing_key: ${{ secrets.CONVEYOR_SIGNING_KEY }}
+          # Pass a randomly generated dummy key for an unsigned personal build
+          signing_key: ${{ secrets.CONVEYOR_SIGNING_KEY || 'generate' }}
 
       - name: Wrap Linux app tree → AppImage
         run: ./gradlew :desktopApp:packageConveyorAppImage --no-configuration-cache
