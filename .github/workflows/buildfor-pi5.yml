@@ -67,13 +67,24 @@ jobs:
           sudo ln -s /opt/appimagetool.AppDir/AppRun /usr/local/bin/appimagetool
 
       - name: Manually Wrap Conveyor output → ARM64 AppImage
-        # Here we force the x86_64 tool to tag the output file and metadata for aarch64
         env:
           ARCH: aarch64
         run: |
-          mkdir -p output/
-          # Wrap the linux-aarch64 folder Conveyor created
-          appimagetool output/SimpMusic-*-linux-aarch64* output/SimpMusic-RaspberryPi5-aarch64.AppImage
+          echo "Checking what Conveyor actually named the folder:"
+          ls -lh output/
+          
+          # Dynamically find the output directory, ignoring upper/lowercase differences
+          APP_DIR=$(find output -maxdepth 1 -type d -iname "*linux*aarch64*" | head -n 1)
+          
+          if [ -z "$APP_DIR" ]; then
+            echo "Error: Could not find the Linux ARM64 output directory."
+            exit 1
+          fi
+          
+          echo "Successfully found folder: $APP_DIR"
+          
+          # Run the x86_64 tool on the found directory to generate the ARM64 AppImage
+          appimagetool "$APP_DIR" output/SimpMusic-RaspberryPi5-aarch64.AppImage
 
       - name: Upload Pi AppImage
         uses: actions/upload-artifact@v4
