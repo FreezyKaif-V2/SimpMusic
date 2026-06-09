@@ -55,23 +55,24 @@ jobs:
           agree_to_license: 1
           signing_key: ${{ secrets.CONVEYOR_SIGNING_KEY || 'generate' }}
 
-      - name: Download and Setup ARM64 AppImageTool
+      - name: Download and Setup x86_64 AppImageTool
         run: |
-          wget https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-aarch64.AppImage -O /tmp/appimagetool
+          # We MUST download the x86_64 version because the GitHub runner is x86_64
+          wget https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O /tmp/appimagetool
           chmod +x /tmp/appimagetool
           cd /tmp
-          # Extract it because running AppImages inside GitHub Actions (Docker) can be finicky with FUSE
+          # Extract it to avoid FUSE issues in CI
           ./appimagetool --appimage-extract
           sudo mv squashfs-root /opt/appimagetool.AppDir
           sudo ln -s /opt/appimagetool.AppDir/AppRun /usr/local/bin/appimagetool
 
       - name: Manually Wrap Conveyor output → ARM64 AppImage
+        # Here we force the x86_64 tool to tag the output file and metadata for aarch64
         env:
           ARCH: aarch64
         run: |
           mkdir -p output/
-          # Conveyor outputs the raw AppDir structure to output/SimpMusic-linux-aarch64 (or similar depending on config)
-          # We pass that raw directory to the aarch64 appimagetool
+          # Wrap the linux-aarch64 folder Conveyor created
           appimagetool output/SimpMusic-*-linux-aarch64* output/SimpMusic-RaspberryPi5-aarch64.AppImage
 
       - name: Upload Pi AppImage
